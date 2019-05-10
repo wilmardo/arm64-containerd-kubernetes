@@ -1,0 +1,31 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yml
+
+driver:
+  name: docker
+
+lint:
+  name: yamllint
+  # options:
+  #   config-file: ${DEV_MOLECULE_RULES}/yaml-lint.yml
+
+platforms:
+  - name: test
+    image: lansible/ubuntu:16.04
+    pre_build_image: true
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_whitelist: profile_tasks
+  lint:
+    name: ansible-lint
+    # options:
+    #   c: ${DEV_MOLECULE_RULES}/ansible-lint.yml
+
+scenario:
+  name: default

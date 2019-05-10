@@ -1,0 +1,4 @@
+- hosts: all
+  become: true
+  roles:
+    - ../arm64-containerd-kubernetes

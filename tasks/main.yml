@@ -1,0 +1,119 @@
+---
+# Disable swap
+- name: swap - remove current swaps from fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: '^/[\S]+\s+none\s+swap '
+    state: absent
+
+# - name: Disable swap
+#   command: swapoff -a
+#   changed_when: false
+
+# Create the same content as the Google containerd tarball but for ARM
+- name: Enable universe for containerd
+  apt_repository:
+    repo: "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} universe"
+    state: present
+    filename: universe
+
+- name: Install containerd
+  apt:
+    name: containerd
+    state: present
+    update_cache: true
+
+- name: Create systemd file for containerd
+  copy:
+    src: containerd.service
+    dest: /etc/systemd/system/containerd.service
+
+- name: Install crictl
+  unarchive:
+    src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+
+- name: Create crictl config
+  copy:
+    content: "runtime-endpoint: /run/containerd/containerd.sock"
+    dest: /etc/crictl.yaml
+
+# Based on https://github.com/containerd/cri/tree/master/contrib/ansible
+- name: Install required packages on Ubuntu
+  package:
+      name: "{{ item }}"
+      state: latest
+  loop:
+      - apt-transport-https
+      - libseccomp2
+
+- name: Create a directory for cni binary
+  file:
+    path: "{{ cni_bin_dir }}"
+    state: directory
+
+- name: Create a directory for cni config files
+  file:
+    path: "{{ cni_conf_dir }}"
+    state: directory
+
+- name: Add gpg key (Ubuntu)
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Add kubernetes source list (Ubuntu)
+  apt_repository:
+    repo: "deb http://apt.kubernetes.io/ kubernetes-{{ ansible_distribution_release }} main"
+    state: present
+    filename: "kubernetes"
+
+- name: "Install kubelet, kubeadm, kubectl (Ubuntu)"
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: installed
+    update_cache: true
+
+- name: "Create a directory for containerd config"
+  file:
+    path: /etc/containerd
+    state: directory
+
+- name: "Start Containerd"
+  systemd:
+    name: containerd
+    daemon_reload: true
+    state: started
+    enabled: true
+
+- name: "Load br_netfilter kernel module"
+  modprobe:
+    name: br_netfilter
+    state: present
+
+- name: "Set bridge-nf-call-iptables"
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+
+- name: "Set ip_forward"
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+
+- name: "Add runtime args in kubelet conf"
+  lineinfile:
+    dest: "/etc/systemd/system/kubelet.service.d/10-kubeadm.conf"
+    line: 'Environment="KUBELET_EXTRA_ARGS= --runtime-cgroups=/system.slice/containerd.service --container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock"'
+    insertafter: '\[Service\]'
+
+- name: "Start Kubelet"
+  systemd:
+    name: kubelet
+    daemon_reload: true
+    state: started
+    enabled: true
