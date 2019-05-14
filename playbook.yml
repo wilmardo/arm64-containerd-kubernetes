@@ -1,4 +1,9 @@
 - hosts: all
   become: true
+  gather_facts: false
+  pre_tasks:
+    - hostname:
+        name: "{{ inventory_hostname }}"
+
   roles:
     - ../arm64-containerd-kubernetes
