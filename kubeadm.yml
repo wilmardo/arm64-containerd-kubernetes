@@ -5,7 +5,10 @@
       command: "kubeadm init --experimental-upload-certs --apiserver-advertise-address={{ ansible_host }} --pod-network-cidr=10.0.0.0/16"
       args:
         creates: /etc/kubernetes/admin.conf
-      register: token
+      register: output
+
+    - debug:
+        var: output
 
     - name: Copy kube conf to localhost
       fetch:
@@ -13,18 +16,22 @@
         dest: "{{ playbook_dir }}"
         flat: true
 
-    - name: Deploy kube-router
-      command: kubectl apply -f https://raw.githubusercontent.com/cloudnativelabs/kube-router/master/daemonset/kubeadm-kuberouter-all-features.yaml
+    - name: Create a Deployment by reading the definition from a local file
+      k8s:
+        state: present
+        src: kube-router.yml
 
     - name: Cleanup kube-proxy deamonset
-      command: kubectl -n kube-system delete ds kube-proxy
+      k8s:
+        name: kube-proxy
+        api_version: v1
+        kind: DeamonSet
+        namespace: kube-system
+        state: absent
 
     - name: Cleanup kube-proxy
       command: docker run --privileged -v /lib/modules:/lib/modules --net=host k8s.gcr.io/kube-proxy-amd64:v1.10.2 kube-proxy --cleanup
 
-    # - name: Join other nodes
-    #   command:
-    #     kubeadm join 192.168.0.200:6443 --token 9vr73a.a8uxyaju799qwdjv --discovery-token-ca-cert-hash sha256:7c2e69131a36ae2a042a339b33381c6d0d43887e2de83720eff5359e26aec866 --experimental-control-plane --certificate-key f8902e114ef118304e561c3ecd4d0b543adc226b7a07f675f56564185ffe0c07
-
-    # - name: Make all nodes schedualable
-    #   command: kubectl taint nodes --all node-role.kubernetes.io/master-
+    - name: Make node schedualable when configured as worker
+      command: kubectl taint nodes --all node-role.kubernetes.io/master-
+      when: "'k8s-nodes' in group_names"
