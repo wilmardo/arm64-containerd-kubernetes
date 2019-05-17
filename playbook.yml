@@ -5,5 +5,19 @@
     - hostname:
         name: "{{ inventory_hostname }}"
 
+    # Purge some after refactor of role
+    - apt:
+        name:
+          - containerd
+          - libseccomp2
+        state: absent
+        purge: true
+    - file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /opt/cni/bin/
+        - /etc/cni/net.d/
+
   roles:
     - ../arm64-containerd-kubernetes

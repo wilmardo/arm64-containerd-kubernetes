@@ -1,0 +1,15 @@
+---
+- name: Install crictl
+  unarchive:
+    src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/v{{ crictl_version }}/crictl-v{{ crictl_version }}-linux-arm64.tar.gz"
+    dest: /usr/local/bin
+    group: root
+    owner: root
+    remote_src: true
+
+- name: Create crictl config
+  copy:
+    content: "runtime-endpoint: /run/containerd/containerd.sock"
+    dest: /etc/crictl.yaml
+    group: root
+    owner: root

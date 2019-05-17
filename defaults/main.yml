@@ -1,4 +1,7 @@
 ---
-crictl_version: v1.14.0
-cni_bin_dir: /opt/cni/bin/
-cni_conf_dir: /etc/cni/net.d/
+kubernetes_version: 1.14.2
+containerd_version: 1.2.5-1
+
+# Crictl
+crictl_version: 1.14.0
+crictl_install: true

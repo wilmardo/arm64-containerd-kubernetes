@@ -10,117 +10,113 @@
   command: swapoff -a
   changed_when: false
 
-# Create the same content as the Google containerd tarball but for ARM
-#- name: Enable universe for containerd
-#  apt_repository:
-#    repo: "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} universe"
-#    state: present
-#    filename: universe
-
-- name: Install containerd
-  apt:
-    name: containerd
-    state: present
-    update_cache: true
-
-- name: Create systemd file for containerd
-  copy:
-    src: containerd.service
-    dest: /etc/systemd/system/containerd.service
-
-- name: Install crictl
-  unarchive:
-    src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-arm64.tar.gz"
-    dest: /usr/local/bin
-    group: root
-    owner: root
-    remote_src: true
-
-- name: Create crictl config
-  copy:
-    content: "runtime-endpoint: /run/containerd/containerd.sock"
-    dest: /etc/crictl.yaml
-    group: root
-    owner: root
-
-# Based on https://github.com/containerd/cri/tree/master/contrib/ansible
-- name: Install required packages on Ubuntu
+- name: Install apt-transport-https for HTTPS repo's
   package:
-      name: "{{ item }}"
-      state: latest
-  loop:
+    name:
       - apt-transport-https
-      - libseccomp2
+      - ca-certificates
+    state: present
 
-#- name: Create a directory for cni binary
-#  file:
-#    path: "{{ cni_bin_dir }}"
-#    state: directory
-#
-#- name: Create a directory for cni config files
-#  file:
-#    path: "{{ cni_conf_dir }}"
-#    state: directory
+# See https://kubernetes.io/docs/setup/cri/#containerd
+- name: Load overlay kernel module
+  modprobe:
+    name: overlay
+    state: present
 
-- name: Add gpg key (Ubuntu)
+- name: Load br_netfilter kernel module
+  modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Set bridge-nf-call-iptables
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+
+- name: Set ip_forward
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+
+- name: Set bridge-nf-call-ip6tables
+  sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: 1
+
+# Docker repo hosts containerd for arm64
+- name: Add gpg key for Docker
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker source list
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+- name: Add gpg key for Kubernetes
   apt_key:
     url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
     state: present
 
 # TODO: Replace xenial with {{ ansible_distribution_release }} when bionic released in https://packages.cloud.google.com/apt/dists
-- name: Add kubernetes source list (Ubuntu)
+- name: Add kubernetes source list
   apt_repository:
     repo: "deb http://apt.kubernetes.io/ kubernetes-xenial main"
     state: present
-    filename: "kubernetes"
+    filename: kubernetes
 
-- name: "Install kubelet, kubeadm, kubectl (Ubuntu)"
+- name: Install kubeadm, kubectl, kubelet, containerd
   apt:
     name:
-      - kubelet
-      - kubeadm
-      - kubectl
+      - "kubeadm={{ kubernetes_version }}-00"
+      - "kubectl={{ kubernetes_version }}-00"
+      - "kubelet={{ kubernetes_version }}-00"
+      - "containerd.io={{ containerd_version }}"
     state: present
     update_cache: true
 
-- name: "Create a directory for containerd config"
+- name: Create a directory for containerd config
   file:
     path: /etc/containerd
     state: directory
 
-- name: "Start Containerd"
+- name: Set defaults to file
+  command: containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+
+- name: Set systemd cgroup driver
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^plugins.cri.systemd_cgroup = '
+    line: plugins.cri.systemd_cgroup = true
+
+- name: Start Containerd
   systemd:
     name: containerd
     daemon_reload: true
     state: started
     enabled: true
 
-- name: "Load br_netfilter kernel module"
-  modprobe:
-    name: br_netfilter
-    state: present
-
-- name: "Set bridge-nf-call-iptables"
-  sysctl:
-    name: net.bridge.bridge-nf-call-iptables
-    value: 1
-
-- name: "Set ip_forward"
-  sysctl:
-    name: net.ipv4.ip_forward
-    value: 1
-
-- name: "Add runtime args in kubelet conf"
+- name: Configure cgroup driver for kubelet
   lineinfile:
-    dest: "/etc/systemd/system/kubelet.service.d/10-kubeadm.conf"
-    line: 'Environment="KUBELET_EXTRA_ARGS=--runtime-cgroups=/system.slice/containerd.service --container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock"'
-    insertafter: '\[Service\]'
-    group: root
+    path: /etc/default/kubelet
+    regexp: '^--cgroup-driver='
+    line: "--cgroup-driver=systemd"
+    create: true
     owner: root
+    group: root
+    mode: 0644
 
-- name: "Start Kubelet"
+- name: Restart kubelet
   systemd:
     name: kubelet
     daemon_reload: true
-    state: started
+    state: restarted
     enabled: true
+
+- name: Include crictl installtion
+  include_tasks: crictl.yml
+  when: crictl_install
