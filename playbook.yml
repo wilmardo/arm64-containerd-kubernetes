@@ -1,6 +1,5 @@
 - hosts: all
   become: true
-  gather_facts: false
   pre_tasks:
     - hostname:
         name: "{{ inventory_hostname }}"
@@ -9,7 +8,6 @@
     - apt:
         name:
           - containerd
-          - libseccomp2
         state: absent
         purge: true
     - file:

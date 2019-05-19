@@ -82,22 +82,27 @@
     path: /etc/containerd
     state: directory
 
+- name: Set defaults to variable
+  command: containerd config default
+  register: containerd_defaults
+  changed_when: false
+
 - name: Set defaults to file
-  command: containerd config default > /etc/containerd/config.toml
-  args:
-    creates: /etc/containerd/config.toml
+  copy:
+    content: "{{ containerd_defaults.stdout }}"
+    dest: /etc/containerd/config.toml
 
 - name: Set systemd cgroup driver
   lineinfile:
     path: /etc/containerd/config.toml
-    regexp: '^plugins.cri.systemd_cgroup = '
-    line: plugins.cri.systemd_cgroup = true
+    regexp: '^systemd_cgroup'
+    line: "systemd_cgroup = true"
 
 - name: Start Containerd
   systemd:
     name: containerd
     daemon_reload: true
-    state: started
+    state: restarted
     enabled: true
 
 - name: Configure cgroup driver for kubelet
