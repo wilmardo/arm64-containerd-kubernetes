@@ -3,7 +3,7 @@
   gather_facts: false
   tasks:
     - name: Run kubeadm init
-      command: "kubeadm init --experimental-upload-certs --apiserver-advertise-address={{ ansible_host }} --pod-network-cidr=10.0.0.0/16"
+      command: kubeadm init --experimental-upload-certs --pod-network-cidr=10.0.0.0/16
       args:
         creates: /etc/kubernetes/admin.conf
       register: output
@@ -40,13 +40,27 @@
 #    - name: Cleanup kube-proxy
 #      command: docker run --privileged -v /lib/modules:/lib/modules --net=host k8s.gcr.io/kube-proxy-amd64:v1.10.2 kube-proxy --cleanup
 
-    - name: Make node schedualable when configured as worker
-      command: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf taint nodes --all node-role.kubernetes.io/master-"
-      when: "'kube-node' in group_names"
-      delegate_to: localhost
+#    - name: Make node schedualable when configured as worker
+#      command: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf taint nodes --all node-role.kubernetes.io/master-"
+#      when: "'kube-node' in group_names"
+#      delegate_to: localhost
 
-- hosts: all
+- hosts: node03
+  become: true
   tasks:
+    - name: Create new token
+      command: kubeadm token generate
+      register: token
+      delegate_to: node01
+
+    - name: Generate join command from one of the masters
+      command: "kubeadm token create {{ token.stdout }} --print-join-command"
+      register: join_command
+      delegate_to: node01
+
     - name: Join to cluser
-      command: kubeadm join {{ ansible_groups[''] }}:6443 --token 9vr73a.a8uxyaju799qwdjv --discovery-token-ca-cert-hash sha256:7c2e69131a36ae2a042a339b33381c6d0d43887e2de83720eff5359e26aec866
-        kubeadm join 192.168.0.200:6443 --token 9vr73a.a8uxyaju799qwdjv --discovery-token-ca-cert-hash sha256:7c2e69131a36ae2a042a339b33381c6d0d43887e2de83720eff5359e26aec866 --experimental-control-plane --certificate-key f8902e114ef118304e561c3ecd4d0b543adc226b7a07f675f56564185ffe0c07
+      command: "{{ join_command.stdout }}"
+      register: output
+
+    - debug:
+        var: output
