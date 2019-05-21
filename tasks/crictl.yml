@@ -1,14 +1,4 @@
 ---
-# Lended from kubespray https://github.com/kubernetes-sigs/kubespray/blob/master/roles/etcd/tasks/main.yml#L8
-- name: ansible_architecture_rename
-  set_fact:
-    host_architecture: >-
-      {%- if ansible_architecture in architecture_groups -%}
-        {{ architecture_groups[ansible_architecture] }}
-      {%- else -%}
-        {{ ansible_architecture }}
-      {% endif %}
-
 - name: Install crictl
   unarchive:
     src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/v{{ crictl_version }}/crictl-v{{ crictl_version }}-linux-{{ host_architecture }}.tar.gz"

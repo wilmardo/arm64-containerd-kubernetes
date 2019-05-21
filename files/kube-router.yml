@@ -46,6 +46,7 @@ spec:
       containers:
       - name: kube-router
         image: docker.io/xjjo/kube-router:arm64-v0.3.1
+        imagePullPolicy: Always
         args:
         - --run-router=true
         - --run-firewall=true

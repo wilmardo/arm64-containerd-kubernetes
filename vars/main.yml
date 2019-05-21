@@ -1,0 +1,5 @@
+---
+# Lended from kubespray https://github.com/kubernetes-sigs/kubespray/blob/73c2ff17dd37abcd6171a0909f1538e03c9072ed/roles/kubernetes/preinstall/tasks/0040-set_facts.yml#L2
+architecture_groups:
+  x86_64: amd64
+  aarch64: arm64

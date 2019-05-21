@@ -8,6 +8,7 @@
     - apt:
         name:
           - containerd
+          - kubelet
         state: absent
         purge: true
     - file:
