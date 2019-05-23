@@ -8,7 +8,10 @@
     - apt:
         name:
           - containerd
+          - kubeadm
+          - kubectl
           - kubelet
+          - containerd.io
         state: absent
         purge: true
     - file:

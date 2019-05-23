@@ -41,17 +41,17 @@
 - name: Set bridge-nf-call-iptables
   sysctl:
     name: net.bridge.bridge-nf-call-iptables
-    value: 1
+    value: '1'
 
 - name: Set ip_forward
   sysctl:
     name: net.ipv4.ip_forward
-    value: 1
+    value: '1'
 
 - name: Set bridge-nf-call-ip6tables
   sysctl:
     name: net.bridge.bridge-nf-call-ip6tables
-    value: 1
+    value: '1'
 
 # Docker repo hosts containerd for arm64
 - name: Add gpg key for Docker
@@ -120,7 +120,6 @@
     path: /etc/default/kubelet
     regexp: '^--cgroup-driver='
     line: "--cgroup-driver=systemd"
-    create: true
     owner: root
     group: root
     mode: 0644

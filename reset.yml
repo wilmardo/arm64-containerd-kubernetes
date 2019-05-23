@@ -1,0 +1,20 @@
+---
+- hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Reset with kubeadm
+      command: kubeadm reset -f
+      register: output
+
+    - name: Echo output
+      debug:
+        var: output
+
+    - name: Reset iptables
+      shell: "iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X"
+      register: output
+
+    - name: Echo output
+      debug:
+        var: output

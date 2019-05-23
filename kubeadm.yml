@@ -41,12 +41,13 @@
 #      command: docker run --privileged -v /lib/modules:/lib/modules --net=host k8s.gcr.io/kube-proxy-amd64:v1.10.2 kube-proxy --cleanup
 
 #    - name: Make node schedualable when configured as worker
-#      command: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf taint nodes --all node-role.kubernetes.io/master-"
+#      command: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
 #      when: "'kube-node' in group_names"
 #      delegate_to: localhost
 
-- hosts: node03
+- hosts: kube-node
   become: true
+  gather_facts: true
   tasks:
     - name: Create new token
       command: kubeadm token generate
