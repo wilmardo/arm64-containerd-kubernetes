@@ -87,6 +87,16 @@
     state: present
     update_cache: true
 
+- name: Mark kubeadm, kubectl, kubelet, containerd as hold
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    -kubeadm
+    - kubectl
+    - kubelet
+    - containerd.io
+
 - name: Create a directory for containerd config
   file:
     path: /etc/containerd
