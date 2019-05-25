@@ -92,7 +92,7 @@
     name: "{{ item }}"
     selection: hold
   loop:
-    -kubeadm
+    - kubeadm
     - kubectl
     - kubelet
     - containerd.io
