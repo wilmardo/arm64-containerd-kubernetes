@@ -1,0 +1,49 @@
+---
+- name: Add gpg key for Docker
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker source list
+  apt_repository:
+    repo: "deb [arch={{ host_architecture }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+- name: Install containerd
+  apt:
+    name: "containerd.io={{ containerd_version }}"
+    state: present
+    update_cache: true
+
+- name: Mark containerd as hold
+  dpkg_selections:
+    name: containerd.io
+    selection: hold
+
+- name: Create a directory for containerd config
+  file:
+    path: /etc/containerd
+    state: directory
+
+- name: Set defaults to variable
+  command: containerd config default
+  register: containerd_defaults
+  changed_when: false
+
+- name: Set defaults to file
+  copy:
+    content: "{{ containerd_defaults.stdout }}"
+    dest: /etc/containerd/config.toml
+
+- name: Set systemd cgroup driver
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^systemd_cgroup'
+    line: "systemd_cgroup = true"
+  notify: restart containerd
+
+- name: Start Containerd
+  systemd:
+    name: containerd
+    enabled: true

@@ -9,17 +9,6 @@
         {{ ansible_architecture }}
       {% endif %}
 
-# Disable swap
-- name: swap - remove current swaps from fstab
-  lineinfile:
-    dest: /etc/fstab
-    regexp: '^/[\S]+\s+none\s+swap '
-    state: absent
-
-- name: Disable swap
-  command: swapoff -a
-  changed_when: false
-
 - name: Install apt-transport-https for HTTPS repo's
   package:
     name:
@@ -27,121 +16,16 @@
       - ca-certificates
     state: present
 
-# See https://kubernetes.io/docs/setup/cri/#containerd
-- name: Load overlay kernel module
-  modprobe:
-    name: overlay
-    state: present
+- name: Import containerd installtion
+  import_tasks: containerd.yml
 
-- name: Load br_netfilter kernel module
-  modprobe:
-    name: br_netfilter
-    state: present
-
-- name: Set bridge-nf-call-iptables
-  sysctl:
-    name: net.bridge.bridge-nf-call-iptables
-    value: '1'
-
-- name: Set ip_forward
-  sysctl:
-    name: net.ipv4.ip_forward
-    value: '1'
-
-- name: Set bridge-nf-call-ip6tables
-  sysctl:
-    name: net.bridge.bridge-nf-call-ip6tables
-    value: '1'
-
-# Docker repo hosts containerd for arm64
-- name: Add gpg key for Docker
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
-
-- name: Add Docker source list
-  apt_repository:
-    repo: "deb [arch={{ host_architecture }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-    state: present
-    filename: docker
-
-- name: Add gpg key for Kubernetes
-  apt_key:
-    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-    state: present
-
-# TODO: Replace xenial with just distri release when bionic released in https://packages.cloud.google.com/apt/dists
-- name: Add kubernetes source list
-  apt_repository:
-    repo: "deb http://apt.kubernetes.io/ kubernetes-{{ ansible_distribution_release | replace('bionic', 'xenial') }} main"
-    state: present
-    filename: kubernetes
-
-- name: Install kubeadm, kubectl, kubelet, containerd
-  apt:
-    name:
-      - "kubeadm={{ kubernetes_version }}-00"
-      - "kubectl={{ kubernetes_version }}-00"
-      - "kubelet={{ kubernetes_version }}-00"
-      - "containerd.io={{ containerd_version }}"
-    state: present
-    update_cache: true
-
-- name: Mark kubeadm, kubectl, kubelet, containerd as hold
-  dpkg_selections:
-    name: "{{ item }}"
-    selection: hold
-  loop:
-    - kubeadm
-    - kubectl
-    - kubelet
-    - containerd.io
-
-- name: Create a directory for containerd config
-  file:
-    path: /etc/containerd
-    state: directory
-
-- name: Set defaults to variable
-  command: containerd config default
-  register: containerd_defaults
-  changed_when: false
-
-- name: Set defaults to file
-  copy:
-    content: "{{ containerd_defaults.stdout }}"
-    dest: /etc/containerd/config.toml
-
-- name: Set systemd cgroup driver
-  lineinfile:
-    path: /etc/containerd/config.toml
-    regexp: '^systemd_cgroup'
-    line: "systemd_cgroup = true"
-
-- name: Start Containerd
-  systemd:
-    name: containerd
-    daemon_reload: true
-    state: restarted
-    enabled: true
-
-- name: Configure cgroup driver for kubelet
-  lineinfile:
-    path: /etc/default/kubelet
-    regexp: '^KUBELET_EXTRA_ARGS=--cgroup-driver='
-    line: "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd"
-    owner: root
-    group: root
-    mode: 0644
-    create: true
-
-- name: Restart kubelet
-  systemd:
-    name: kubelet
-    daemon_reload: true
-    state: restarted
-    enabled: true
+- name: Import kubernetes installtion
+  import_tasks: kubernetes.yml
 
 - name: Include crictl installtion
   include_tasks: crictl.yml
   when: crictl_install
+
+- name: Include haproxy installtion
+  include_tasks: haproxy.yml
+  when: haproxy_install

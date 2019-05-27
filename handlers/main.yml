@@ -1,0 +1,15 @@
+---
+- name: restart containerd
+  systemd:
+    name: containerd
+    state: restarted
+
+- name: restart keepalived
+  systemd:
+    name: keepalived
+    state: restarted
+
+- name: restart haproxy
+  systemd:
+    name: haproxy
+    state: restarted

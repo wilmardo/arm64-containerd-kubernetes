@@ -1,0 +1,83 @@
+---
+# Disable swap
+- name: swap - remove current swaps from fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: '^/[\S]+\s+none\s+swap '
+    state: absent
+
+- name: see of there are active swap devices or files
+  shell: "cat /proc/swaps | wc -l"
+  register: active_swaps
+  changed_when: false
+
+- name: Disable swap
+  command: swapoff -a
+  changed_when: false
+  when: active_swaps.stdout|int > 1
+
+# See https://kubernetes.io/docs/setup/cri/#containerd
+- name: Load needed kernel modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ needed_kernel_modules }}"
+
+- name: Make sure kernel modules are loaded on reboot
+  lineinfile:
+    path: /etc/modules-load.d/modules.conf
+    line: "{{ item }}"
+    create: true
+  loop: "{{ needed_kernel_modules }}"
+
+- name: Set sysctl parameters
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  loop: "{{ needed_sysctl_parameters }}"
+
+- name: Add gpg key for Kubernetes
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+# TODO: Replace xenial with just distri release when bionic released in https://packages.cloud.google.com/apt/dists
+- name: Add kubernetes source list
+  apt_repository:
+    repo: "deb http://apt.kubernetes.io/ kubernetes-{{ ansible_distribution_release | replace('bionic', 'xenial') }} main"
+    state: present
+    filename: kubernetes
+
+- name: Install kubeadm, kubectl, kubelet, kubernetes-cni
+  apt:
+    name:
+      - "kubeadm={{ kubernetes_version }}-00"
+      - "kubectl={{ kubernetes_version }}-00"
+      - "kubelet={{ kubernetes_version }}-00"
+      - "kubernetes-cni={{ kubernetes_cni_version }}-00"
+    state: present
+    update_cache: true
+
+- name: Mark kubeadm, kubectl, kubelet as hold
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubeadm
+    - kubectl
+    - kubelet
+
+- name: Configure cgroup driver for kubelet
+  lineinfile:
+    path: /etc/default/kubelet
+    regexp: '^KUBELET_EXTRA_ARGS=--cgroup-driver='
+    line: "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd"
+    owner: root
+    group: root
+    mode: 0644
+    create: true
+
+- name: Enable kubelet
+  systemd:
+    name: kubelet
+    enabled: true

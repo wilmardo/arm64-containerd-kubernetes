@@ -1,0 +1,37 @@
+---
+- block:
+  - name: Install packages
+    apt:
+      name:
+        - keepalived
+        - haproxy
+      state: present
+
+  - name: Place haproxy configuration
+    template:
+      src: haproxy.j2
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+    notify: restart haproxy
+
+  - name: Enable haproxy service
+    systemd:
+      name: haproxy
+      enabled: true
+
+- block:
+  - name: Place keepalived configuration
+    template:
+      src: keepalived.j2
+      dest: /etc/keepalived/keepalived.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: restart keepalived
+
+  - name: Enable keepalived service
+    service:
+      name: keepalived
+      enabled: true

@@ -1,7 +1,34 @@
 ---
 kubernetes_version: 1.14.2
 containerd_version: 1.2.5-1
+kubernetes_cni_version: 0.7.5
 
 # Crictl (https://github.com/kubernetes-sigs/cri-tools/releases)
 crictl_version: 1.14.0
 crictl_install: true
+
+# Haproxy for kubernetes api VIP
+haproxy_install: true
+
+needed_kernel_modules:
+  - br_netfilter
+  - overlay
+
+needed_sysctl_parameters:
+  # Needed for Kubernetes
+  - name: net.bridge.bridge-nf-call-iptables
+    value: 1
+  - name: net.ipv4.ip_forward
+    value: 1
+  - name: net.bridge.bridge-nf-call-ip6tables
+    value: 1
+  # Needed for haproxy
+  - name: net.ipv4.ip_nonlocal_bind
+    value: 1
+
+# Kubernetes
+k8s_version: stable
+k8s_cluster_name: The Creepy Coupe
+k8s_cluster_api_vip: 192.168.1.140
+k8s_pod_subnet: 10.8.0.0/16
+k8s_dns_domain: creepycoupe.local

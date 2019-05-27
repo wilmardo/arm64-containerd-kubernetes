@@ -4,22 +4,5 @@
     - hostname:
         name: "{{ inventory_hostname }}"
 
-#    # Purge some after refactor of role
-#    - apt:
-#        name:
-#          - containerd
-#          - kubeadm
-#          - kubectl
-#          - kubelet
-#          - containerd.io
-#        state: absent
-#        purge: true
-#    - file:
-#        path: "{{ item }}"
-#        state: absent
-#      loop:
-#        - /opt/cni/bin/
-#        - /etc/cni/net.d/
-
   roles:
     - ../arm64-containerd-kubernetes

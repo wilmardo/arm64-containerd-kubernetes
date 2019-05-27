@@ -1,0 +1,11 @@
+---
+- name: Create join command
+  command: "kubeadm token create --ttl 15m --print-join-command"
+  delegate_to: "{{ k8s-master[0] }}"
+  become: true
+  run_once: true
+  register: join_command
+
+- name: Join node to cluster
+  command: "{{ join_command.stdout }} {{ 'kube-master' in group_names | ternary ('--experimental-control-plane','') }}"
+  become: true
