@@ -41,6 +41,6 @@ backend kubernetes-master-nodes
     mode tcp
     balance roundrobin
     option tcp-check
-{% for host in v_inventory_masters %}
-    server {{ hostvars[host].ansible_hostname }} {{ hostvars[host].ansible_default_ipv4.address }}:6443 check fall 3 rise 2
+{% for host in groups['kubemaster'] %}
+    server {{ hostvars[host].inventory_hostname }} {{ hostvars[host].ansible_default_ipv4.address }}:6443 check fall 3 rise 2
 {% endfor %}

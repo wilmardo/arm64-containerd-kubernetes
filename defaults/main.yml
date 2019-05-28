@@ -29,6 +29,10 @@ needed_sysctl_parameters:
 # Kubernetes
 k8s_version: stable
 k8s_cluster_name: The Creepy Coupe
-k8s_cluster_api_vip: 192.168.1.140
+k8s_cluster_api_vip: 192.168.2.140
 k8s_pod_subnet: 10.8.0.0/16
 k8s_dns_domain: creepycoupe.local
+
+# Kube router
+kube_router_version: v0.3.1
+

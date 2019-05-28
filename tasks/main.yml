@@ -9,6 +9,10 @@
         {{ ansible_architecture }}
       {% endif %}
 
+- name: Set hostname to Ansible inventory_hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
 - name: Install apt-transport-https for HTTPS repo's
   package:
     name:
@@ -24,8 +28,48 @@
 
 - name: Include crictl installtion
   include_tasks: crictl.yml
-  when: crictl_install
+  when: crictl_install | bool
 
 - name: Include haproxy installtion
   include_tasks: haproxy.yml
-  when: haproxy_install
+  when: 
+    - haproxy_install | bool
+    - "'kubemaster' in group_names"
+
+- name: Force all notified handlers to run at this point, not waiting for normal sync points
+  meta: flush_handlers
+
+- name: Wait for containerd to be running
+  wait_for:
+    path: /var/run/containerd/containerd.sock
+    state: present
+
+- name: Check if first master is initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: cluster_init
+  delegate_to: "{{ groups.kubemaster[0] }}"
+  run_once: true
+
+- name: Start init cluster when not initialized
+  include_tasks: kubernetes/init-cluster.yml
+  run_once: true
+  when: not cluster_init.stat.exists
+
+- name: Wait for cluster to become healthy
+  wait_for:
+    port: 443
+    host: "{{ k8s_cluster_api_vip }}"
+    state: started
+
+- name: Check if node is available in cluster
+  shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes | grep {{ inventory_hostname }}"
+  delegate_to: localhost
+  changed_when: false
+  failed_when: node_available.rc == 2  # Needed for grep
+  register: node_available
+
+- name: Add node when not yet available
+  include_tasks: kubernetes/add-node.yml
+  when: node_available.rc != 0
+

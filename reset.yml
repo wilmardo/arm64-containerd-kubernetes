@@ -18,3 +18,16 @@
     - name: Echo output
       debug:
         var: output
+
+    - name: Reset ipvs
+      command: ipvsadm --clear
+      register: output
+
+    - name: Echo output
+      debug:
+        var: output
+
+#    - name: Delete node when not the whole cluster is reset
+#      command: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf delete node {{ inventory_hostname }}"
+#      delegate_to: localhost
+

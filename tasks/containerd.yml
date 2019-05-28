@@ -26,24 +26,14 @@
     path: /etc/containerd
     state: directory
 
-- name: Set defaults to variable
-  command: containerd config default
-  register: containerd_defaults
-  changed_when: false
-
-- name: Set defaults to file
+- name: Set config to file
   copy:
-    content: "{{ containerd_defaults.stdout }}"
+    src: containerd.toml
     dest: /etc/containerd/config.toml
-
-- name: Set systemd cgroup driver
-  lineinfile:
-    path: /etc/containerd/config.toml
-    regexp: '^systemd_cgroup'
-    line: "systemd_cgroup = true"
   notify: restart containerd
 
 - name: Start Containerd
   systemd:
     name: containerd
     enabled: true
+
