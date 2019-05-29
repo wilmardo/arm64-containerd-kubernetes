@@ -1,4 +1,10 @@
 ---
+# TODO: Make this idempotent
+- name: Prepull all kubeadm images
+  command: kubeadm config images pull
+  delegate_to: "{{ groups.kubemaster[0] }}"
+  become: true
+
 - name: Create join command
   command: "kubeadm token create --ttl 15m --print-join-command"
   delegate_to: "{{ groups.kubemaster[0] }}"
@@ -29,4 +35,3 @@
   delegate_to: localhost
   vars:
     label: node-role.kubernetes.io/worker=worker  # Needed for escaping equals and dots
-

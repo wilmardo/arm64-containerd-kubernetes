@@ -9,6 +9,12 @@
     src: kubeadm-config.j2
     dest: /etc/kubernetes/kubeadm/kubeadm-config.yaml
 
+# TODO: Make this idempotent
+- name: Prepull all kubeadm images
+  command: kubeadm config images pull
+  delegate_to: "{{ groups.kubemaster[0] }}"
+  become: true
+
 - name: Run kubeadm init
   command: kubeadm init
             --experimental-upload-certs
