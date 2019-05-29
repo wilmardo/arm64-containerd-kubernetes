@@ -53,6 +53,9 @@
 
 - debug: var=master_init
 
+- debug:
+    var: master_init | map(attribute='stat') | selectattr('exists') | list
+
 - name: Start init cluster when not initialized
   include_tasks: kubernetes/init-cluster.yml
   run_once: true
