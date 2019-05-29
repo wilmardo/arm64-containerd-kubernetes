@@ -1,37 +1,44 @@
 ---
-- block:
-  - name: Install packages
-    apt:
-      name:
-        - keepalived
-        - haproxy
-      state: present
+- name: Install haproxy, keepalived
+  apt:
+    name:
+      - keepalived
+      - haproxy
+    state: present
+  when: ansible_distribution == 'Ubuntu'
 
-  - name: Place haproxy configuration
-    template:
-      src: haproxy.j2
-      dest: /etc/haproxy/haproxy.cfg
-      owner: root
-      group: root
-      mode: 0644
-    notify: restart haproxy
+- name: Install haproxy, keepalived
+  yum:
+    name:
+      - keepalived
+      - haproxy
+    state: present
+  when: ansible_distribution == 'CentOS'
 
-  - name: Enable haproxy service
-    systemd:
-      name: haproxy
-      enabled: true
+- name: Place haproxy configuration
+  template:
+    src: haproxy.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart haproxy
 
-- block:
-  - name: Place keepalived configuration
-    template:
-      src: keepalived.j2
-      dest: /etc/keepalived/keepalived.conf
-      owner: root
-      group: root
-      mode: 0644
-    notify: restart keepalived
+- name: Enable haproxy service
+  systemd:
+    name: haproxy
+    enabled: true
 
-  - name: Enable keepalived service
-    service:
-      name: keepalived
-      enabled: true
+- name: Place keepalived configuration
+  template:
+    src: keepalived.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart keepalived
+
+- name: Enable keepalived service
+  service:
+    name: keepalived
+    enabled: true

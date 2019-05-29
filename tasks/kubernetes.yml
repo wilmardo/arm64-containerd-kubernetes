@@ -36,36 +36,63 @@
     value: "{{ item.value }}"
   loop: "{{ needed_sysctl_parameters }}"
 
-- name: Add gpg key for Kubernetes
-  apt_key:
-    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-    state: present
+- block:
+  - name: Add gpg key for Kubernetes
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      state: present
 
-# TODO: Replace xenial with just distri release when bionic released in https://packages.cloud.google.com/apt/dists
-- name: Add kubernetes source list
-  apt_repository:
-    repo: "deb http://apt.kubernetes.io/ kubernetes-{{ ansible_distribution_release | replace('bionic', 'xenial') }} main"
-    state: present
-    filename: kubernetes
+  # TODO: Replace xenial with just distri release when bionic released in https://packages.cloud.google.com/apt/dists
+  - name: Add kubernetes source list
+    apt_repository:
+      repo: "deb http://apt.kubernetes.io/ kubernetes-{{ ansible_distribution_release | replace('bionic', 'xenial') }} main"
+      state: present
+      filename: kubernetes
 
-- name: Install kubeadm, kubectl, kubelet, kubernetes-cni
-  apt:
-    name:
-      - "kubeadm={{ kubernetes_version }}-00"
-      - "kubectl={{ kubernetes_version }}-00"
-      - "kubelet={{ kubernetes_version }}-00"
-      - "kubernetes-cni={{ kubernetes_cni_version }}-00"
-    state: present
-    update_cache: true
+  - name: Install kubeadm, kubectl, kubelet, kubernetes-cni
+    apt:
+      name:
+        - "kubeadm={{ kubernetes_version }}-00"
+        - "kubectl={{ kubernetes_version }}-00"
+        - "kubelet={{ kubernetes_version }}-00"
+        - "kubernetes-cni={{ kubernetes_cni_version }}-00"
+      state: present
+      update_cache: true
 
-- name: Mark kubeadm, kubectl, kubelet as hold
-  dpkg_selections:
-    name: "{{ item }}"
-    selection: hold
-  loop:
-    - kubeadm
-    - kubectl
-    - kubelet
+  - name: Mark kubeadm, kubectl, kubelet as hold
+    dpkg_selections:
+      name: "{{ item }}"
+      selection: hold
+    loop:
+      - kubeadm
+      - kubectl
+      - kubelet
+
+  when: ansible_distribution == 'Ubuntu'
+
+- block:
+  - name: Kubernetes yum add repository
+    yum_repository:
+      name: kubernetes
+      description: "Kubernetes - {{ ansible_architecture }}"
+      baseurl: "https://packages.cloud.google.com/yum/repos/kubernetes-el7-{{ ansible_architecture }}"
+      enabled: true
+      gpgcheck: true
+      repo_gpgcheck: true
+      gpgkey:
+        - "https://packages.cloud.google.com/yum/doc/yum-key.gpg"
+        - "https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg"
+
+  - name: Install kubeadm, kubectl, kubelet, kubernetes-cni
+    yum:
+      name:
+        - "kubeadm-{{ kubernetes_version }}"
+        - "kubectl-{{ kubernetes_version }}"
+        - "kubelet-{{ kubernetes_version }}"
+        - "kubernetes-cni-{{ kubernetes_version }}"
+      state: present
+
+  when: ansible_distribution == 'CentOS'
 
 - name: Configure cgroup driver for kubelet
   lineinfile:

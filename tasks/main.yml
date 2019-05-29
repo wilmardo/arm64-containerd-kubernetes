@@ -32,7 +32,7 @@
 
 - name: Include haproxy installtion
   include_tasks: haproxy.yml
-  when: 
+  when:
     - haproxy_install | bool
     - "'kubemaster' in group_names"
 
@@ -44,17 +44,38 @@
     path: /var/run/containerd/containerd.sock
     state: present
 
-- name: Check if first master is initialized
+- name: Check if a master is initialized
   stat:
     path: /etc/kubernetes/admin.conf
-  register: cluster_init
-  delegate_to: "{{ groups.kubemaster[0] }}"
-  run_once: true
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['kubemaster'] }}"
+  register: master_init
 
 - name: Start init cluster when not initialized
   include_tasks: kubernetes/init-cluster.yml
   run_once: true
-  when: not cluster_init.stat.exists
+  # Only run when none of the masters have an existing /etc/kubernetes/admin.conf
+  when: master_init | selectattr('exists') | length == 0
+
+- name: Check if a master is initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['kubemaster'] }}"
+  register: master_init
+
+- fail:
+    msg: No master initialized
+  when: master_init | selectattr('exists') | length == 0
+
+# This works because the whole group is passed to master_init so the mapping master_init <> groups['kubemaster'] should match
+- name: Create list of available masters
+  set_fact:
+    available_masters: "{{ available_masters + [ groups['kubemaster'][index] ] }}"
+  loop: "{{ master_init }}"
+  loop_control:
+    index_var: index
+  when: item.exists
 
 - name: Wait for cluster to become healthy
   wait_for:
@@ -71,5 +92,4 @@
 
 - name: Add node when not yet available
   include_tasks: kubernetes/add-node.yml
-  when: node_available.rc != 0
-
+  when: node_available.rc != 0  # Node not found by grep
