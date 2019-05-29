@@ -57,7 +57,7 @@
   include_tasks: kubernetes/init-cluster.yml
   run_once: true
   # Only run when none of the masters have an existing /etc/kubernetes/admin.conf
-  when: master_init | map(attribute='stat') | selectattr('exists') | length == 0
+  when: master_init | map(attribute='stat') | selectattr('exists') | list | length == 0
 
 - debug: var=master_init
 
@@ -70,7 +70,7 @@
 
 - fail:
     msg: No master initialized
-  when: master_init | map(attribute='stat') | selectattr('exists') | length == 0
+  when: master_init | map(attribute='stat') | selectattr('exists') | list | length == 0
 
 # This works because the whole group is passed to master_init so the mapping master_init <> groups['kubemaster'] should match
 - name: Create list of available masters
