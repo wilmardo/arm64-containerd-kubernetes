@@ -51,11 +51,15 @@
   loop: "{{ groups['kubemaster'] }}"
   register: master_init
 
+- debug: var=master_init
+
 - name: Start init cluster when not initialized
   include_tasks: kubernetes/init-cluster.yml
   run_once: true
   # Only run when none of the masters have an existing /etc/kubernetes/admin.conf
-  when: master_init | selectattr('exists') | length == 0
+  when: master_init | selectattr('exists') | list | length == 0
+
+- debug: var=master_init
 
 - name: Check if a master is initialized
   stat:
