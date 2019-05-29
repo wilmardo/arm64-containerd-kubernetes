@@ -51,18 +51,11 @@
   loop: "{{ groups['kubemaster'] }}"
   register: master_init
 
-- debug: var=master_init
-
-- debug:
-    var: master_init | map(attribute='stat') | selectattr('exists') | list
-
 - name: Start init cluster when not initialized
   include_tasks: kubernetes/init-cluster.yml
   run_once: true
   # Only run when none of the masters have an existing /etc/kubernetes/admin.conf
-  when: master_init | map(attribute='stat') | selectattr('exists') | list | length == 0
-
-- debug: var=master_init
+  when: master_init.results | map(attribute='stat') | selectattr('exists') | list | length == 0
 
 - name: Check if a master is initialized
   stat:
@@ -73,27 +66,24 @@
 
 - fail:
     msg: No master initialized
-  when: master_init | map(attribute='stat') | selectattr('exists') | list | length == 0
+  when: master_init.results | map(attribute='stat') | selectattr('exists') | list | length == 0
 
 # This works because the whole group is passed to master_init so the mapping master_init <> groups['kubemaster'] should match
 - name: Create list of available masters
   set_fact:
-    available_masters: "{{ available_masters + [ groups['kubemaster'][index] ] }}"
-  loop: "{{ master_init }}"
+    available_masters: "{{ available_masters | default([]) + [ groups['kubemaster'][index] ] }}"
+  loop: "{{ master_init.results }}"
   loop_control:
     index_var: index
   when: item.stat.exists
 
 - debug: var=available_masters
 
-- name: Wait for cluster to become healthy
-  wait_for:
-    port: 443
-    host: "{{ k8s_cluster_api_vip }}"
-    state: started
-
 - name: Check if node is available in cluster
   shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes | grep {{ inventory_hostname }}"
+  until: node_available.stdout.find("Unable to connect to the server") != -1
+  retries: 5
+  delay: 10
   delegate_to: localhost
   changed_when: false
   failed_when: node_available.rc == 2  # Needed for grep

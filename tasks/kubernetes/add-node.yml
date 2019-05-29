@@ -2,12 +2,12 @@
 # TODO: Make this idempotent
 - name: Prepull all kubeadm images
   command: kubeadm config images pull
-  delegate_to: "{{ groups.kubemaster[0] }}"
+  delegate_to: "{{ available_masters | random }}"
   become: true
 
 - name: Create join command
   command: "kubeadm token create --ttl 15m --print-join-command"
-  delegate_to: "{{ groups.kubemaster[0] }}"
+  delegate_to: "{{ available_masters | random }}"
   become: true
   run_once: true
   register: join_command
@@ -15,7 +15,7 @@
 # Needed until https://github.com/kubernetes/kubernetes/pull/75224 is followed up
 - name: Get certificate key when joining a master
   command: kubeadm init phase upload-certs --experimental-upload-certs
-  delegate_to: "{{ groups.kubemaster[0] }}"
+  delegate_to: "{{ available_masters | random }}"
   when: "'kubemaster' in group_names"
   become: true
   run_once: true

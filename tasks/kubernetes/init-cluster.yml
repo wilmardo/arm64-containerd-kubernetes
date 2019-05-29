@@ -36,20 +36,20 @@
 - name: Setup network plugin
   k8s:
     kubeconfig: "{{ playbook_dir }}/admin.conf"
-#    src: "files/kube-router-{{ host_architecture }}.yml"
+    src: "files/kube-router-{{ host_architecture }}.yml"
     state: present
-    src: "files/weave.yml"
+#    src: "files/weave.yml"
   delegate_to: localhost
 
-# - name: Cleanup kube-proxy deamonset
-#  k8s:
-#    kubeconfig: "{{ playbook_dir }}/admin.conf"
-#    name: kube-proxy
-#    api_version: v1
-#    kind: DaemonSet
-#    namespace: kube-system
-#    state: absent
-#  delegate_to: localhost
+- name: Cleanup kube-proxy deamonset
+  k8s:
+    kubeconfig: "{{ playbook_dir }}/admin.conf"
+    name: kube-proxy
+    api_version: v1
+    kind: DaemonSet
+    namespace: kube-system
+    state: absent
+  delegate_to: localhost
 
 # TODO: Rewirte to crictl
 # - name: Cleanup kube-proxy
@@ -59,4 +59,3 @@
   command: "kubectl --kubeconfig {{ playbook_dir }}/admin.conf taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
   when: "'kubenode' in group_names"
   delegate_to: localhost
-

@@ -9,6 +9,6 @@ networking:
   DNSDomain: "{{ k8s_dns_domain}}"
 
 ---
-apiVersion: kubeadm.k8s.io/v1beta1
+apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-CgroupDriver: systemd
+cGroupDriver: systemd
