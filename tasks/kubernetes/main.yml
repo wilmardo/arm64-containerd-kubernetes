@@ -3,14 +3,25 @@
   shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes -o json"
   delegate_to: localhost
   changed_when: false
+  # We expect the 'Unable to connect message' everythng else is a fail
+  failed_when: "cluster_initialized.stderr != 'Unable to connect to the server: EOF'"
   run_once: true
   register: cluster_initialized
 
 - name: Start init cluster when not initialized
   include_tasks: kubernetes/init-cluster.yml
   run_once: true
-  # Only run when kubectl returns bs
-  when: cluster_initialized.rc != 0
+  when: cluster_initialized.rc == 1
+
+- name: Wait until cluster is healthy
+  shell: kubectl --kubeconfig={{ playbook_dir }}/admin.conf get componentstatus
+  until: cluster_healthy.stdout.find('Unhealthy') == -1  # When string not present
+  retries: 5
+  delay: 10
+  delegate_to: localhost
+  changed_when: false
+  run_once: true
+  register: cluster_healthy
 
 - name: Register nodes in cluster
   shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes -o json"

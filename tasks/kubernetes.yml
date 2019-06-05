@@ -90,6 +90,7 @@
         - "kubectl-{{ kubernetes_version }}"
         - "kubelet-{{ kubernetes_version }}"
         - "kubernetes-cni-{{ kubernetes_version }}"
+        - "cri-tools-{{ crictl_version }}"
       state: present
 
   when: ansible_distribution == 'CentOS'
@@ -98,3 +99,10 @@
   systemd:
     name: kubelet
     enabled: true
+
+- name: Create crictl config
+  copy:
+    content: "runtime-endpoint: /run/containerd/containerd.sock"
+    dest: /etc/crictl.yaml
+    group: root
+    owner: root

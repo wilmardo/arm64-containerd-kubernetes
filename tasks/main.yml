@@ -26,10 +26,6 @@
 - name: Import kubernetes installtion
   import_tasks: kubernetes.yml
 
-- name: Include crictl installtion
-  include_tasks: crictl.yml
-  when: crictl_install | bool
-
 - name: Include haproxy installtion
   include_tasks: haproxy.yml
   when:
