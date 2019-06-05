@@ -38,7 +38,6 @@
     kubeconfig: "{{ playbook_dir }}/admin.conf"
     src: "files/kube-router-{{ host_architecture }}.yml"
     state: present
-#    src: "files/weave.yml"
   delegate_to: localhost
 
 - name: Cleanup kube-proxy deamonset

@@ -1,4 +1,11 @@
 - hosts: all
   become: true
+  pre_tasks:
+    - name: Update all packages
+      apt:
+        name: "*"
+        state: latest
+        update_cache: true
+
   roles:
     - ../arm64-containerd-kubernetes

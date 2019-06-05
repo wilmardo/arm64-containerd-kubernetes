@@ -94,17 +94,6 @@
 
   when: ansible_distribution == 'CentOS'
 
-# Should be set by kubeadm init
-# - name: Configure cgroup driver for kubelet
-#   lineinfile:
-#     path: /etc/default/kubelet
-#     regexp: '^KUBELET_EXTRA_ARGS=--cgroup-driver='
-#     line: "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd"
-#     owner: root
-#     group: root
-#     mode: 0644
-#     create: true
-
 - name: Enable kubelet
   systemd:
     name: kubelet

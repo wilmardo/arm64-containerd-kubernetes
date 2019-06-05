@@ -44,65 +44,7 @@
     path: /var/run/containerd/containerd.sock
     state: present
 
-- name: Check if a master is initialized
-  stat:
-    path: /etc/kubernetes/admin.conf
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['kubemaster'] }}"
-  register: master_init
-  tags:
-    - add_node
-
-- name: Start init cluster when not initialized
-  include_tasks: kubernetes/init-cluster.yml
-  run_once: true
-  # Only run when none of the masters have an existing /etc/kubernetes/admin.conf
-  when: master_init.results | map(attribute='stat') | selectattr('exists') | list | length == 0
-  tags:
-    - add_node
-
-- name: Check if a master is initialized
-  stat:
-    path: /etc/kubernetes/admin.conf
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['kubemaster'] }}"
-  register: master_init
-  tags:
-    - add_node
-
-- fail:
-    msg: No master initialized
-  when: master_init.results | map(attribute='stat') | selectattr('exists') | list | length == 0
-  tags:
-    - add_node
-
-# This works because the whole group is passed to master_init so the mapping master_init <> groups['kubemaster'] should match
-- name: Create list of available masters
-  set_fact:
-    available_masters: "{{ available_masters | default([]) + [ groups['kubemaster'][index] ] }}"
-  loop: "{{ master_init.results }}"
-  loop_control:
-    index_var: index
-  when: item.stat.exists
-  tags:
-    - add_node
-
-- debug: var=available_masters
-
-- name: Check if node is available in cluster
-  shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes | grep {{ inventory_hostname }}"
-  until: node_available.stdout.find("Unable to connect to the server") != -1
-  retries: 5
-  delay: 10
-  delegate_to: localhost
-  changed_when: false
-  failed_when: node_available.rc == 2  # Needed for grep
-  register: node_available
-  tags:
-    - add_node
-
-- name: Add node when not yet available
-  include_tasks: kubernetes/add-node.yml
-  when: node_available.rc != 0  # Node not found by grep
+- name: Import kubernetes related tasks with add_node tag
+  import_tasks: kubernetes/main.yml
   tags:
     - add_node

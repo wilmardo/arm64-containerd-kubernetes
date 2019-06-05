@@ -1,0 +1,67 @@
+---
+- name: Check if a master is initialized
+  shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes -o json"
+  delegate_to: localhost
+  changed_when: false
+  run_once: true
+  register: cluster_initialized
+
+- name: Start init cluster when not initialized
+  include_tasks: kubernetes/init-cluster.yml
+  run_once: true
+  # Only run when kubectl returns bs
+  when: cluster_initialized.rc != 0
+
+- name: Register nodes in cluster
+  shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes -o json"
+  until: nodes_available.rc == 0
+  retries: 5
+  delay: 10
+  delegate_to: localhost
+  changed_when: false
+  run_once: true
+  register: nodes_available
+
+- name: Parse nodes_available to dict
+  set_fact:
+    nodes_available: "{{ nodes_available.stdout | from_json }}"
+
+- name: Register nodes state
+  set_fact:
+    nodes_state:
+      "{{
+          nodes_state | default([]) + [{
+            'name': item.metadata.name,
+            'state': item.status.conditions[3].type,
+            'role': is_master | ternary('master', 'node')
+          }]
+      }}"
+  loop: "{{ nodes_available['items'] }}"
+  run_once: true
+  vars:
+    is_master: "{{ 'node-role.kubernetes.io/master' in item.metadata.labels }}"
+
+- debug:
+    var: nodes_state
+
+- name: End when no master is initialized
+  meta: end_play
+  when: nodes_state | selectattr('state', 'equalto', 'Ready') | selectattr('role', 'equalto', 'master') | list | length == 0
+
+# This works because the whole group is passed to master_init so the mapping master_init <> groups['kubemaster'] should match
+- name: Create list of available masters
+  set_fact:
+    available_masters: "{{ nodes_state
+                            | selectattr('state', 'equalto', 'Ready')
+                            | selectattr('role', 'equalto', 'master')
+                            | map(attribute='name')
+                            | list }}"
+  run_once: true
+
+# Since we are in a static import here, end play for hosts already in cluster (dynamic include_tasks not working)
+- name: End play for hosts already in the cluster
+  meta: end_host
+  when: nodes_state | selectattr('name', 'equalto', inventory_hostname) | list | length == 1
+
+- name: Add nodes
+  include_tasks: kubernetes/add-node.yml

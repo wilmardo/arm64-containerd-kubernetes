@@ -1,9 +1,8 @@
 ---
-# TODO: Make this idempotent
 - name: Prepull all kubeadm images
   command: kubeadm config images pull
-  delegate_to: "{{ available_masters | random }}"
   become: true
+  changed_when: false
 
 - name: Create join command
   command: "kubeadm token create --ttl 15m --print-join-command"
