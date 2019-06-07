@@ -1,60 +1,72 @@
 ---
-- name: Create kubeadm config dir
-  file:
-    path: /etc/kubernetes/kubeadm
-    state: directory
+# Block to delegate_to: first master
+- block:
+    - name: Create kubeadm config dir
+      file:
+        path: /etc/kubernetes/kubeadm
+        state: directory
 
-- name: Place kubeadm-config
-  template:
-    src: kubeadm-config.j2
-    dest: /etc/kubernetes/kubeadm/kubeadm-config.yaml
+    - name: Place kubeadm-config
+      template:
+        src: kubeadm-config.j2
+        dest: /etc/kubernetes/kubeadm/kubeadm-config.yaml
 
-# TODO: Make this idempotent
-- name: Prepull all kubeadm images
-  command: kubeadm config images pull
+    - name: Prepull all kubeadm images
+      command: kubeadm config images pull
+      become: true
+
+    - name: Run kubeadm init
+      command: kubeadm init
+                --experimental-upload-certs
+                --config=/etc/kubernetes/kubeadm/kubeadm-config.yaml
+      args:
+        creates: /etc/kubernetes/admin.conf
+      become: true
+
+    - name: Set node to initialized since kubeadm has completed succesfully
+      file:
+        path: /etc/kubernetes/.ansible_init
+        state: touch
+
+    - name: Copy kube conf to localhost
+      fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ playbook_dir }}/"
+        flat: true
+      become: true
+
+    - name: Setup network plugin
+      k8s:
+        kubeconfig: "{{ playbook_dir }}/admin.conf"
+        src: "files/kube-router-{{ host_architecture }}.yml"
+        state: present
+
+    - name: Cleanup kube-proxy deamonset
+      k8s:
+        kubeconfig: "{{ playbook_dir }}/admin.conf"
+        name: kube-proxy
+        api_version: v1
+        kind: DaemonSet
+        namespace: kube-system
+        state: absent
+
+    # TODO: Rewirte to crictl
+    # - name: Cleanup kube-proxy
+    #   command: docker run --privileged -v /lib/modules:/lib/modules --net=host k8s.gcr.io/kube-proxy-amd64:v1.10.2 kube-proxy --cleanup
+    #   delegate_to: "{{ groups.kubemaster[0] }}"
+
+    - name: Wait until cluster is healthy
+      command: kubectl --kubeconfig /etc/kubernetes/admin.conf get componentstatus
+      until: cluster_healthy.stdout.find('Unhealthy') == -1  # When string not present
+      retries: 5
+      delay: 10
+      changed_when: false
+      register: cluster_healthy
+
+    - name: Make master node schedualable when configured as worker
+      command: "kubectl --kubeconfig /etc/kubernetes/admin.conf taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
+      when: "'kubenode' in group_names"
+
+  # Delegate for whole block
+  run_once: true
   delegate_to: "{{ groups.kubemaster[0] }}"
-  become: true
-
-- name: Run kubeadm init
-  command: kubeadm init
-            --experimental-upload-certs
-            --config=/etc/kubernetes/kubeadm/kubeadm-config.yaml
-  args:
-    creates: /etc/kubernetes/admin.conf
-  delegate_to: "{{ groups.kubemaster[0] }}"
-  register: output
-  become: true
-
-- name: Copy kube conf to localhost
-  fetch:
-    src: /etc/kubernetes/admin.conf
-    dest: "{{ playbook_dir }}/"
-    flat: true
-  delegate_to: "{{ groups.kubemaster[0] }}"
-  become: true
-
-- name: Setup network plugin
-  k8s:
-    kubeconfig: "{{ playbook_dir }}/admin.conf"
-    src: "files/kube-router-{{ host_architecture }}.yml"
-    state: present
-  delegate_to: localhost
-
-- name: Cleanup kube-proxy deamonset
-  k8s:
-    kubeconfig: "{{ playbook_dir }}/admin.conf"
-    name: kube-proxy
-    api_version: v1
-    kind: DaemonSet
-    namespace: kube-system
-    state: absent
-  delegate_to: localhost
-
-# TODO: Rewirte to crictl
-# - name: Cleanup kube-proxy
-#   command: docker run --privileged -v /lib/modules:/lib/modules --net=host k8s.gcr.io/kube-proxy-amd64:v1.10.2 kube-proxy --cleanup
-
-- name: Make master node schedualable when configured as worker
-  command: "kubectl --kubeconfig {{ playbook_dir }}/admin.conf taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
-  when: "'kubenode' in group_names"
-  delegate_to: localhost

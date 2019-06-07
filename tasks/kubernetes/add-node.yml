@@ -5,8 +5,8 @@
   changed_when: false
 
 - name: Create join command
-  command: "kubeadm token create --ttl 15m --print-join-command"
-  delegate_to: "{{ available_masters | random }}"
+  command: kubeadm token create --ttl 15m --print-join-command
+  delegate_to: "{{ command_node }}"
   become: true
   run_once: true
   register: join_command
@@ -14,7 +14,7 @@
 # Needed until https://github.com/kubernetes/kubernetes/pull/75224 is followed up
 - name: Get certificate key when joining a master
   command: kubeadm init phase upload-certs --experimental-upload-certs
-  delegate_to: "{{ available_masters | random }}"
+  delegate_to: "{{ command_node }}"
   when: "'kubemaster' in group_names"
   become: true
   run_once: true
@@ -28,9 +28,13 @@
     # Default is needed since the register is skipped for non master nodes but still evaluated by Ansible
     append_master_join: "--experimental-control-plane --certificate-key {{ certificate_key.stdout_lines[2] | default('') }}"
 
+- name: Set node to initialized since kubeadm has completed succesfully
+  file:
+    path: /etc/kubernetes/.ansible_init
+    state: touch
+
 - name: Label node as worker
-  command: "kubectl --kubeconfig {{ playbook_dir }}/admin.conf label node {{ inventory_hostname }} {{ label }}"
+  command: "kubectl --kubeconfig /etc/kubernetes/admin.conf label node {{ inventory_hostname }} {{ label }}"
   when: "'kubenode' in group_names"
-  delegate_to: localhost
   vars:
     label: node-role.kubernetes.io/worker=worker  # Needed for escaping equals and dots

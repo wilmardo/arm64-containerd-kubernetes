@@ -8,6 +8,8 @@
       {%- else -%}
         {{ ansible_architecture }}
       {% endif %}
+  tags:
+    - always
 
 - name: Set hostname to Ansible inventory_hostname
   hostname:

@@ -1,34 +1,40 @@
 ---
 - name: Check if a master is initialized
-  shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes -o json"
-  delegate_to: localhost
-  changed_when: false
-  # We expect the 'Unable to connect message' everythng else is a fail
-  failed_when: "cluster_initialized.stderr != 'Unable to connect to the server: EOF'"
-  run_once: true
-  register: cluster_initialized
+  stat:
+    path: /etc/kubernetes/.ansible_init
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['kubemaster'] }}"
+  register: master_init
 
 - name: Start init cluster when not initialized
   include_tasks: kubernetes/init-cluster.yml
   run_once: true
-  when: cluster_initialized.rc == 1
+  # Only run when none of the masters have an existing /etc/kubernetes/admin.conf
+  when: master_init.results | map(attribute='stat') | selectattr('exists') | list | length == 0
+  register: init_executed
 
-- name: Wait until cluster is healthy
-  shell: kubectl --kubeconfig={{ playbook_dir }}/admin.conf get componentstatus
-  until: cluster_healthy.stdout.find('Unhealthy') == -1  # When string not present
-  retries: 5
-  delay: 10
-  delegate_to: localhost
-  changed_when: false
-  run_once: true
-  register: cluster_healthy
+# Select an initialized node, the command node only needs kubectl installed and a valid config
+- name: Select command node
+  set_fact:
+    # This selects the first master or the first initialed master in the master_init list
+    # | first | join('') select the first and flattens it to a string
+    command_node: "{{ init_executed.changed | ternary(groups.kubemaster[0], master_init
+                                                                            | json_query(query)
+                                                                            | first
+                                                                            | join(''))
+                    }}"
+  vars:
+    query: "results[?stat.exists==`false`].item"  # item is inventory_hostname
+
+- debug:
+    var: command_node
 
 - name: Register nodes in cluster
-  shell: "kubectl --kubeconfig={{ playbook_dir }}/admin.conf get nodes -o json"
+  shell: "kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes -o json"
   until: nodes_available.rc == 0
   retries: 5
   delay: 10
-  delegate_to: localhost
+  delegate_to: "{{ command_node }}"
   changed_when: false
   run_once: true
   register: nodes_available
