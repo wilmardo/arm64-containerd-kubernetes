@@ -11,20 +11,21 @@
   run_once: true
   # Only run when none of the masters have an existing /etc/kubernetes/admin.conf
   when: master_init.results | map(attribute='stat') | selectattr('exists') | list | length == 0
-  register: init_executed
+
+- debug:
+    var: master_init | json_query(query)
+  vars:
+    query: "results[?stat.exists==`true`].item"  # item is inventory_hostname
 
 # Select an initialized node, the command node only needs kubectl installed and a valid config
 - name: Select command node
   set_fact:
     # This selects the first master or the first initialed master in the master_init list
     # | first | join('') select the first and flattens it to a string
-    command_node: "{{ init_executed.changed | ternary(groups.kubemaster[0], master_init
-                                                                            | json_query(query)
-                                                                            | first
-                                                                            | join(''))
-                    }}"
+    command_node: "{{ init_masters | ternary(groups.kubemaster[0], init_masters | first) }}"
   vars:
-    query: "results[?stat.exists==`false`].item"  # item is inventory_hostname
+    init_masters: master_init | json_query(query)
+    query: "results[?stat.exists==`true`].item"  # item is inventory_hostname
 
 - debug:
     var: command_node

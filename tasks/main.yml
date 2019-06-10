@@ -37,6 +37,15 @@
 - name: Force all notified handlers to run at this point, not waiting for normal sync points
   meta: flush_handlers
 
+- name: Check for reboot hint.
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_necessary
+
+- name: Reboot node if needed
+  reboot:
+  when: reboot_necessary.stat.exists
+
 - name: Wait for containerd to be running
   wait_for:
     path: /var/run/containerd/containerd.sock

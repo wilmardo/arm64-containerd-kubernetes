@@ -35,11 +35,14 @@
         flat: true
       become: true
 
+    # Delegate to localhost since python modules not available on masters
     - name: Setup network plugin
       k8s:
         kubeconfig: "{{ playbook_dir }}/admin.conf"
         src: "files/kube-router-{{ host_architecture }}.yml"
         state: present
+      delegate_to: localhost
+      become: false
 
     - name: Cleanup kube-proxy deamonset
       k8s:
@@ -49,6 +52,8 @@
         kind: DaemonSet
         namespace: kube-system
         state: absent
+      delegate_to: localhost
+      become: false
 
     # TODO: Rewirte to crictl
     # - name: Cleanup kube-proxy
