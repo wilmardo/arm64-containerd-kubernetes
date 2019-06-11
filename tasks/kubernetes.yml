@@ -59,7 +59,7 @@
       state: present
       update_cache: true
 
-  - name: Mark kubeadm, kubectl, kubelet as hold
+  - name: Set kubeadm, kubectl, kubelet as hold
     dpkg_selections:
       name: "{{ item }}"
       selection: hold
@@ -67,6 +67,7 @@
       - kubeadm
       - kubectl
       - kubelet
+      - kubernetes-cni
 
   when: ansible_distribution == 'Ubuntu'
 
@@ -99,10 +100,3 @@
   systemd:
     name: kubelet
     enabled: true
-
-- name: Create crictl config
-  copy:
-    content: "runtime-endpoint: /run/containerd/containerd.sock"
-    dest: /etc/crictl.yaml
-    group: root
-    owner: root

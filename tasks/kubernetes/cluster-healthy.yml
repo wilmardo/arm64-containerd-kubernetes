@@ -1,0 +1,8 @@
+---
+- name: Wait until cluster is healthy
+  command: kubectl --kubeconfig /etc/kubernetes/admin.conf get componentstatus
+  until: cluster_healthy.stdout.find('Unhealthy') == -1  # When string not present
+  retries: 5
+  delay: 10
+  changed_when: false
+  register: cluster_healthy

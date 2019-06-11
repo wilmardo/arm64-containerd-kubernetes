@@ -18,7 +18,7 @@
       update_cache: true
     notify: restart containerd
 
-  - name: Mark containerd as hold
+  - name: Set containerd as hold
     dpkg_selections:
       name: containerd.io
       selection: hold
@@ -61,3 +61,10 @@
   systemd:
     name: containerd
     enabled: true
+
+- name: Create crictl config
+  copy:
+    content: "runtime-endpoint: unix:///run/containerd/containerd.sock"
+    dest: /etc/crictl.yaml
+    group: root
+    owner: root

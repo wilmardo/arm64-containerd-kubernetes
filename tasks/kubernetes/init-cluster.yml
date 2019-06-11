@@ -60,13 +60,7 @@
     #   command: docker run --privileged -v /lib/modules:/lib/modules --net=host k8s.gcr.io/kube-proxy-amd64:v1.10.2 kube-proxy --cleanup
     #   delegate_to: "{{ groups.kubemaster[0] }}"
 
-    - name: Wait until cluster is healthy
-      command: kubectl --kubeconfig /etc/kubernetes/admin.conf get componentstatus
-      until: cluster_healthy.stdout.find('Unhealthy') == -1  # When string not present
-      retries: 5
-      delay: 10
-      changed_when: false
-      register: cluster_healthy
+    - import_tasks: kubernetes/cluster-healthy.yml
 
     - name: Make master node schedualable when configured as worker
       command: "kubectl --kubeconfig /etc/kubernetes/admin.conf taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
