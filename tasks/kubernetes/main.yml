@@ -22,7 +22,9 @@
     query: "results[?stat.exists==`true`].item"  # item is inventory_hostname
 
 - name: Register nodes in cluster
-  shell: "kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes -o yaml"
+  command: kubectl get nodes -o yaml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_default_location }}"
   until: nodes_available.rc == 0
   retries: 5
   delay: 10
@@ -69,10 +71,12 @@
 
 - name: Register cluster version
   command: kubectl --kubeconfig /etc/kubernetes/admin.conf version -o yaml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_default_location }}"
   delegate_to: "{{ command_node }}"
   changed_when: false
   register: kubectl_cluster_version
-s
+
 - set_fact:
     kubernetes_cluster_version: "{{ kubectl_cluster_version.stdout | from_yaml }}"
 

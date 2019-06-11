@@ -3,3 +3,5 @@
 architecture_groups:
   x86_64: amd64
   aarch64: arm64
+
+kubeconfig_default_location: /etc/kubernetes/admin.conf

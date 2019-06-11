@@ -1,5 +1,5 @@
 ---
-kubernetes_version: 1.14.2
+kubernetes_version: 1.14.3
 containerd_version: 1.2.5-1
 kubernetes_cni_version: 0.7.5
 

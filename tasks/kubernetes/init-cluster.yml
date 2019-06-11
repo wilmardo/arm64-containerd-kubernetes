@@ -39,25 +39,19 @@
         flat: true
       become: true
 
-    # Delegate to localhost since python modules not available on masters
     - name: Setup network plugin
-      k8s:
-        kubeconfig: "{{ playbook_dir }}/admin.conf"
-        src: "files/kube-router-{{ host_architecture }}.yml"
-        state: present
-      delegate_to: localhost
-      become: false
+      command: kubectl apply -f -
+      args:
+        stdin: "{{ lookup('file', network_file) }}"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_default_location }}"
+      vars:
+        network_file: "files/kube-router-{{ host_architecture }}.yml"
 
-    - name: Cleanup kube-proxy deamonset
-      k8s:
-        kubeconfig: "{{ playbook_dir }}/admin.conf"
-        name: kube-proxy
-        api_version: v1
-        kind: DaemonSet
-        namespace: kube-system
-        state: absent
-      delegate_to: localhost
-      become: false
+    - name: Cleanup kube-proxy daemonset
+      command: kubectl -n kube-system delete daemonset kube-proxy
+      environment:
+        KUBECONFIG: "{{ kubeconfig_default_location }}"
 
     # TODO: Rewirte to crictl
     # - name: Cleanup kube-proxy
@@ -67,11 +61,15 @@
     - import_tasks: kubernetes/cluster-healthy.yml
 
     - name: Make master node schedualable when configured as worker
-      command: "kubectl --kubeconfig /etc/kubernetes/admin.conf taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
+      command: "kubectl taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_default_location }}"
       when: "'kubenode' in group_names"
 
     - name: Label node as worker
-      command: "kubectl --kubeconfig /etc/kubernetes/admin.conf label node {{ inventory_hostname }} {{ label }}"
+      command: "kubectl label node {{ inventory_hostname }} {{ label }}"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_default_location }}"
       when: "'kubenode' in group_names"
       vars:
         label: node-role.kubernetes.io/worker=worker  # Needed for escaping equals and dots
