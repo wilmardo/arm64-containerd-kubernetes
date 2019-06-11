@@ -5,4 +5,6 @@
   retries: 5
   delay: 10
   changed_when: false
+  delegate_to: "{{ command_node }}"
+  run_once: true
   register: cluster_healthy

@@ -28,6 +28,10 @@
         path: /etc/kubernetes/.ansible_init
         state: touch
 
+    - name: Set this master as command node
+      set_fact:
+        command_node: "{{ inventory_hostname }}"
+
     - name: Copy kube conf to localhost
       fetch:
         src: /etc/kubernetes/admin.conf
