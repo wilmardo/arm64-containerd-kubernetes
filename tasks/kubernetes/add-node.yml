@@ -35,7 +35,9 @@
 
 - name: Make master node schedualable when configured as worker
   command: "kubectl --kubeconfig /etc/kubernetes/admin.conf taint node {{ inventory_hostname }} node-role.kubernetes.io/master:NoSchedule-"
-  when: "'kubenode' in group_names"
+  when:
+    - "'kubemaster' in group_names"
+    - "'kubenode' in group_names"
 
 - name: Label node as worker
   command: "kubectl --kubeconfig /etc/kubernetes/admin.conf label node {{ inventory_hostname }} {{ label }}"
