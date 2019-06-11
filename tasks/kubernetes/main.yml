@@ -31,7 +31,7 @@
     var: command_node
 
 - name: Register nodes in cluster
-  shell: "kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes -o json"
+  shell: "kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes -o yaml"
   until: nodes_available.rc == 0
   retries: 5
   delay: 10
@@ -42,7 +42,7 @@
 
 - name: Parse nodes_available to dict
   set_fact:
-    nodes_available: "{{ nodes_available.stdout | from_json }}"
+    nodes_available: "{{ nodes_available.stdout | from_yaml }}"
 
 - name: Register nodes state
   set_fact:
