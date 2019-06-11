@@ -4,6 +4,8 @@ kind: ClusterConfiguration
 clusterName: "{{ k8s_cluster_name }}"
 kubernetesVersion: "{{ k8s_version }}"
 controlPlaneEndpoint: "{{ k8s_cluster_api_vip }}:443"
+apiServer:
+  timeoutForControlPlane: 8m0s
 networking:
   podSubnet: "{{ k8s_pod_subnet }}"
   dnsDomain: "{{ k8s_dns_domain }}"
