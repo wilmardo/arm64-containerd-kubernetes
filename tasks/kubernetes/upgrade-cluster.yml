@@ -1,0 +1,119 @@
+---
+- name: Assert that upgrade isn't more then one minor version
+  assert:
+    that:
+      - kubernetes_cluster_version.serverVersion.major | int == conf_major_version | int
+      - minor_version_diff == '0' or minor_version_diff == '1'  # Asserts also no downgrade
+    fail_msg: "
+      Upgrade from {{ kubernetes_cluster_version.serverVersion.gitVersion }} to v{{ kubernetes_version }}
+      is more then one minor version"
+  vars:
+    conf_major_version: "{{ kubernetes_version.split('.')[0] | replace('v', '') }}"
+    conf_minor_version: "{{ kubernetes_version.split('.')[1] }}"
+    minor_version_diff: "{{ conf_minor_version | int - kubernetes_cluster_version.serverVersion.minor | int }}"
+
+- name: Assert no accidental downgrade on patch version
+  assert:
+    that: conf_patch_version > kubernetes_cluster_patch_version
+    fail_msg:
+      "Tried to downgrade from {{ kubernetes_cluster_version.serverVersion.gitVersion }}
+      to v{{ kubernetes_version }}"
+  when: conf_minor_version == kubernetes_cluster_version.serverVersion.minor
+  vars:
+    conf_minor_version: "{{ kubernetes_version.split('.')[1] }}"
+    conf_patch_version: "{{ kubernetes_version.split('.')[2] }}"
+    kubernetes_cluster_patch_version: "{{ kubernetes_cluster_version.serverVersion.gitVersion.split('.')[2] | int }}"
+
+- name: Register current containerd version
+  command: dpkg -s containerd.io
+  changed_when: false
+  register: current_containerd_version
+
+- set_fact:
+    current_containerd_version: "{{ current_containerd_version.stdout | from_yaml }}"
+
+- debug:
+    var: current_containerd_version.Version
+
+# Run tasks host by host
+- block:
+    - name: Drain node when nessacary
+      command: "kubectl --kubeconfig /etc/kubernetes/admin.conf drain {{ inventory_hostname }} --ignore-daemonsets"
+      delegate_to: "{{ command_node }}"
+      when: "'kubenode' in group_names"
+
+    - name: Set kubeadm as install
+      dpkg_selections:
+        name: kubeadm
+        selection: install
+
+    - name: Install kubeadm
+      apt:
+        name: "kubeadm={{ kubernetes_version }}-00"
+        state: present
+        update_cache: true
+
+    - name: Set kubeadm as hold
+      dpkg_selections:
+        name: kubeadm
+        selection: hold
+
+    - name: Run kubeadm upgrade for first master
+      command: kubeadm upgrade apply v{{ kubernetes_version }}
+      run_once: true
+      when: "'kubemaster' in group_names"
+
+    - import_tasks: kubernetes/cluster-healthy.yml
+
+    - name: Run kubeadm upgrade for other masters
+      command: kubeadm upgrade node experimental-control-plane
+      when: "'kubemaster' in group_names"
+
+    - name: Run kubeadm upgrade for workers
+      command: kubeadm upgrade node config --kubelet-version v1.14.x
+      when: "'kubenode' in group_names and not 'kubemaster' in group_names"
+
+    - import_tasks: kubernetes/cluster-healthy.yml
+
+    - name: Run kubeadm upgrade for other masters
+      command: kubeadm upgrade node experimental-control-plane
+      when: "'kubemaster' in group_names"
+
+    - name: Set kubectl, kubelet and kubernetes-cni as install
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: install
+      loop:
+        - kubectl
+        - kubelet
+        - kubernetes-cni
+
+    - name: Install kubectl, kubelet, kubernetes-cni
+      apt:
+        name:
+          - "kubectl={{ kubernetes_version }}-00"
+          - "kubelet={{ kubernetes_version }}-00"
+          - "kubernetes-cni={{ kubernetes_cni_version }}-00"
+        state: present
+        update_cache: true
+      notify: restart kubelet
+
+    - name: Set kubectl, kubelet as hold
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubectl
+        - kubelet
+        - kubernetes-cni
+
+    - name: Force all notified handlers to run at this point, not waiting for normal sync points
+      meta: flush_handlers
+
+    - name: Uncordon node when nessacary
+      command: "kubectl --kubeconfig /etc/kubernetes/admin.conf uncordon {{ inventory_hostname }}"
+      when: "'kubenode' in group_names"
+
+  # Delegate for block above
+  delegate_to: "{{ item }}"
+  loop: "{{ play_hosts }}"
