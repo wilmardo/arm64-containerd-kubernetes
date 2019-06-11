@@ -72,13 +72,13 @@
   delegate_to: "{{ command_node }}"
   changed_when: false
   register: kubectl_cluster_version
-
+s
 - set_fact:
     kubernetes_cluster_version: "{{ kubectl_cluster_version.stdout | from_yaml }}"
 
-- name: Include kubernetes upgrade when current cluster version is different from kubernetes_version
-  import_tasks: kubernetes/upgrade-cluster.yml
-  when: "'v' + kubernetes_version != kubernetes_cluster_version.serverVersion.gitVersion"
+# - name: Include kubernetes upgrade when current cluster version is different from kubernetes_version
+#   import_tasks: kubernetes/upgrade-cluster.yml
+#   when: "'v' + kubernetes_version != kubernetes_cluster_version.serverVersion.gitVersion"
 
 # Since we are in a static import here, end play for hosts already in cluster (dynamic include_tasks not working)
 - name: End play for hosts already in the cluster
