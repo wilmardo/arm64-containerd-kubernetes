@@ -23,7 +23,6 @@ needed_sysctl_parameters:
     value: 1
 
 # Kubernetes
-k8s_version: stable
 k8s_cluster_name: The Creepy Coupe
 k8s_cluster_api_vip: 192.168.2.140
 k8s_pod_subnet: 10.8.0.0/16
