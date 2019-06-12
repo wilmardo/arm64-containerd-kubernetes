@@ -18,6 +18,7 @@
     # This selects the first initialized master in the master_init list
     command_node: "{{ master_init | json_query(query) | first) }}"
   when: command_node is undefined  # Undefined when cluster not just initialized
+  run_once: true
   vars:
     query: "results[?stat.exists==`true`].item"  # item is inventory_hostname
 
@@ -36,6 +37,7 @@
 - name: Parse nodes_available to dict
   set_fact:
     nodes_available: "{{ nodes_available.stdout | from_yaml }}"
+  run_once: true
 
 - name: Register nodes state
   set_fact:
@@ -73,12 +75,14 @@
   command: kubectl --kubeconfig /etc/kubernetes/admin.conf version -o yaml
   environment:
     KUBECONFIG: "{{ kubeconfig_default_location }}"
+  run_once: true
   delegate_to: "{{ command_node }}"
   changed_when: false
   register: kubectl_cluster_version
 
 - set_fact:
     kubernetes_cluster_version: "{{ kubectl_cluster_version.stdout | from_yaml }}"
+  run_once: true
 
 # - name: Include kubernetes upgrade when current cluster version is different from kubernetes_version
 #   import_tasks: kubernetes/upgrade-cluster.yml
