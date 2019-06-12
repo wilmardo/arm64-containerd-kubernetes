@@ -25,7 +25,7 @@ needed_sysctl_parameters:
 # Kubernetes
 k8s_cluster_name: The Creepy Coupe
 k8s_cluster_api_vip: 192.168.2.140
-k8s_cluster_api_port: 6443
+k8s_cluster_api_port: 443
 k8s_pod_subnet: 10.8.0.0/16
 k8s_dns_domain: creepycoupe.local
 
