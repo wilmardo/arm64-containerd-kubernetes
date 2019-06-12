@@ -32,7 +32,7 @@ defaults
     timeout server  50000
 
 frontend kubernetes
-    bind {{ k8s_cluster_api_vip }}:443
+    bind {{ k8s_cluster_api_vip }}:{{ k8s_cluster_api_ports }}
     option tcplog
     mode tcp
     default_backend kubernetes-master-nodes

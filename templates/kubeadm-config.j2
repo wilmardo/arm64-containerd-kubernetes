@@ -3,7 +3,7 @@ apiVersion: kubeadm.k8s.io/v1beta1
 kind: ClusterConfiguration
 clusterName: "{{ k8s_cluster_name }}"
 kubernetesVersion: "v{{ kubernetes_version }}"
-controlPlaneEndpoint: "{{ k8s_cluster_api_vip }}:443"
+controlPlaneEndpoint: "{{ k8s_cluster_api_vip }}:{{ k8s_cluster_api_ports }}"
 apiServer:
   timeoutForControlPlane: 8m0s
 networking:
