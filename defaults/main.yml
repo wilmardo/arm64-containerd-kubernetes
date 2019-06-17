@@ -28,6 +28,7 @@ k8s_cluster_api_vip: 192.168.2.140
 k8s_cluster_api_port: 443
 k8s_pod_subnet: 10.8.0.0/16
 k8s_dns_domain: creepycoupe.local
+k8s_disable_swap: true
 
 # Kube router
 kube_router_version: v0.3.1

@@ -16,9 +16,10 @@
       become: true
 
     - name: Run kubeadm init
-      command: kubeadm init
+      command: "kubeadm init
                 --experimental-upload-certs
                 --config=/etc/kubernetes/kubeadm/kubeadm-config.yaml
+                {{ k8s_disable_swap | ternary('', '--ignore-preflight-errors Swap') }}"
       args:
         creates: /etc/kubernetes/admin.conf
       become: true

@@ -16,7 +16,7 @@
 - name: Select command node
   set_fact:
     # This selects the first initialized master in the master_init list
-    command_node: "{{ master_init | json_query(query) | first) }}"
+    command_node: "{{ master_init | json_query(query) | first }}"
   when: command_node is undefined  # Undefined when cluster not just initialized
   run_once: true
   vars:

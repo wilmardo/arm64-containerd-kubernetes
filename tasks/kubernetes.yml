@@ -1,20 +1,32 @@
 ---
-# Disable swap
-- name: swap - remove current swaps from fstab
-  lineinfile:
-    dest: /etc/fstab
-    regexp: '^/[\S]+\s+none\s+swap '
-    state: absent
 
-- name: see of there are active swap devices or files
+- name: See of there are active swap devices or files
   shell: "cat /proc/swaps | wc -l"
   register: active_swaps
   changed_when: false
+  when: k8s_disable_swap | bool
 
-- name: Disable swap
-  command: swapoff -a
-  changed_when: false
-  when: active_swaps.stdout|int > 1
+- name: Disable swaps when needed
+  block:
+    - name: swap - remove current swaps from fstab
+      lineinfile:
+        dest: /etc/fstab
+        regexp: '^/[\S]+\s+none\s+swap '
+        state: absent
+      when: k8s_disable_swap | bool
+
+    - name: Disable swap
+      command: swapoff -a
+      changed_when: false
+      
+    - name: Remove zram since it is also swap
+      apt:
+        name: zram-config
+        state: absent
+
+  when:
+    - active_swaps.stdout|int > 1
+    - k8s_disable_swap | bool
 
 # See https://kubernetes.io/docs/setup/cri/#containerd
 - name: Load needed kernel modules

@@ -21,7 +21,9 @@
   register: certificate_key
 
 - name: Join node to cluster
-  command: "{{ join_command.stdout }} {{ is_master | ternary(append_master_join, '') }}"
+  command: "{{ join_command.stdout }}
+            {{ is_master | ternary(append_master_join, '') }}
+            {{ k8s_disable_swap | ternary('', '--ignore-preflight-errors Swap') }}"
   become: true
   vars:
     is_master: "{{ 'kubemaster' in group_names }}"
