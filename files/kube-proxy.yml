@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-proxy-cleanup
+  namespace: kube-system
+spec:
+  containers:
+    - image: gcr.io/google-containers/kube-proxy:v1.14.3
+      command: ["kube-proxy"]
+      args: ["--cleanup"]
+      name: kube-proxy-cleanup
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - name: lib-modules
+          mountPath: /lib/modules
+  volumes:
+    - name: lib-modules
+      hostPath:
+        path: /lib/modules
